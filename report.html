@@ -88,7 +88,6 @@
     }
     .qrbox img{ width:100%; height:100%; object-fit:contain; display:block; }
 
-    /* 可编辑块（医生可编辑，患者只读） */
     .editable{
       border:1px solid #d1d5db;
       border-radius:10px;
@@ -144,7 +143,6 @@
     </div>
 
     <div class="grid2">
-      <!-- 左：信息 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="card">
           <div class="info-line"><strong>就诊号：</strong><span id="patient-id"></span></div>
@@ -180,7 +178,6 @@
           <div class="editable" id="medical-advice" contenteditable="true"></div>
         </div>
 
-        <!-- 医生端：PAT提交区 -->
         <div class="card" id="doctorPanel" style="display:none;">
           <div class="editbar">
             <div><b>医生更新（云端提交）</b></div>
@@ -196,7 +193,6 @@
         </div>
       </div>
 
-      <!-- 右：医学图像展示 + QR码展示 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="card">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
@@ -269,7 +265,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code') || "001";
 
-    // ===== 2) DOM引用 =====
     const $ = (id)=>document.getElementById(id);
     const diagEl = $("diagnosis-proof");
     const advEl  = $("medical-advice");
@@ -277,7 +272,6 @@
     const advStatus  = $("advStatus");
     const syncBadge  = $("syncBadge");
 
-    // ===== 3) 读云端 db.json（raw，患者轮询用）=====
     async function loadDbRaw(){
       const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DB_PATH}?ts=${nowMs()}`;
       const res = await fetch(url, { cache: "no-store" });
@@ -285,13 +279,13 @@
       return await res.json();
     }
 
-    // ===== 4) 读云端文件 + sha（医生提交用）=====
     async function ghGetFile(){
       const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${DB_PATH}?ref=${encodeURIComponent(BRANCH)}`;
       const res = await fetch(url, { headers: { "Accept":"application/vnd.github+json" } });
       if(!res.ok) throw new Error(`GET contents failed: ${res.status}`);
       return await res.json();
     }
+
     async function ghPutFile(token, message, contentText, sha){
       const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${DB_PATH}`;
       const body = {
@@ -315,7 +309,6 @@
       return await res.json();
     }
 
-    // ===== 5) 角色控制 =====
     function setEditableForRole(){
       const isDoctor = (role === "doctor");
       $("doctorPanel").style.display = isDoctor ? "" : "none";
@@ -330,7 +323,6 @@
       advStatus.textContent  = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
     }
 
-    // ===== 6) 渲染报告 =====
     let lastUpdatedAt = 0;
 
     function fillReport(r){
@@ -366,7 +358,7 @@
       }
     }
 
-    // ===== 7) 医生保存到云端 =====
+    // ===== 修复点：保存时输出“云端db里有哪些code”，找不到就自动创建 =====
     $("btnSaveCloud")?.addEventListener("click", async ()=>{
       $("err").textContent = "";
       try{
@@ -377,8 +369,39 @@
         const text = decodeURIComponent(escape(atob(file.content.replace(/\n/g,""))));
         const db = JSON.parse(text);
 
-        const report = (db.reports || []).find(x=>String(x.code)===String(code));
-        if(!report){ $("err").textContent="db.json 中找不到该 code"; return; }
+        // 诊断输出：实际读到的 codes
+        const codes = Array.isArray(db.reports) ? db.reports.map(r=>String(r.code)) : [];
+        console.log("Loaded codes from GitHub API:", codes);
+
+        let reports = db.reports;
+        if (!Array.isArray(reports)) {
+          db.reports = [];
+          reports = db.reports;
+        }
+
+        let report = reports.find(x=>String(x.code)===String(code));
+        if(!report){
+          // 自动创建（避免卡死）
+          report = {
+            code: String(code),
+            patientId: `P-${code}`,
+            reportId: `R-${code}`,
+            examDate: "2025-07-10",
+            patientName: `患者${code}`,
+            genderAge: "男 / 45",
+            doctorName: `张医生（工号 D-${code}）`,
+            department: "胸外科",
+            imageMeta: "CT，分辨率 512×512",
+            bodyPart: "胸部",
+            diagnosisProof: "",
+            medicalAdvice: "",
+            updatedAt: 0
+          };
+          reports.push(report);
+
+          // 同时把提示写清楚：你读到的db里没有该code
+          $("err").textContent = `提示：云端db中未找到 code=${code}，已自动创建。云端已有code：${codes.join(", ") || "（空）"}`;
+        }
 
         report.diagnosisProof = diagEl.textContent;
         report.medicalAdvice  = advEl.textContent;
@@ -389,7 +412,8 @@
         await refreshFromCloud();
       }catch(e){
         $("saveStatus").textContent = "提交失败";
-        $("err").textContent = "提交失败：请检查 PAT 权限/仓库/分支/路径";
+        $("err").textContent = "提交失败：请检查 PAT 权限/仓库/分支/路径（也可打开控制台查看codes输出）";
+        console.error(e);
       }
     });
 
@@ -398,7 +422,6 @@
       try{ await refreshFromCloud(); }catch(e){ $("err").textContent="刷新失败"; }
     });
 
-    // ===== 8) 启动轮询 =====
     setEditableForRole();
     refreshFromCloud().catch(()=>{});
     setInterval(()=>{ refreshFromCloud().catch(()=>{}); }, POLL_MS);
@@ -449,7 +472,7 @@
     // -----------------------------
     const fileInput = document.getElementById("fileInput");
     const imgbox = document.getElementById("imgbox");
-    let currentImgUrl = null;       // Object URL
+    let currentImgUrl = null;
     let currentImgName = "medical_image.png";
 
     function setImgPlaceholder(){
@@ -526,7 +549,6 @@
       }
     };
 
-    // 初始化占位
     setImgPlaceholder();
     setQrPlaceholder();
   </script>
