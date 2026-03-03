@@ -73,7 +73,7 @@
         // 简化：把登录状态写到 localStorage（演示）
         localStorage.setItem("logged_in", "1");
         // 跳到报告页
-        window.location.href = `r.html?code=${encodeURIComponent(code)}`;
+        window.location.href = `report.html?code=${encodeURIComponent(code)}`;
       } else {
         document.getElementById("err").textContent = "用户名或密码错误";
       }
