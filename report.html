@@ -44,7 +44,6 @@
       display:block;
     }
 
-    /* 统一按钮区域：等宽、均匀，自适应 */
     .toolrow{
       display:grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -55,7 +54,6 @@
       .toolrow{ grid-template-columns: 1fr; }
     }
 
-    /* file input 伪装成按钮 */
     .filebtn{
       display:inline-flex;
       align-items:center;
@@ -71,14 +69,12 @@
     .filebtn:hover{ background:#f3f7fb; }
     .filebtn input{ display:none; }
 
-    /* 统一按钮字体与高度 */
     .btn, .filebtn{
       font-size: 14px;
       line-height: 20px;
       font-weight: 600;
     }
 
-    /* 二维码展示框：与医学图像展示框同尺寸 */
     .qrbox{
       width:100%;
       aspect-ratio: 4/3;
@@ -91,12 +87,50 @@
       overflow:hidden;
     }
     .qrbox img{ width:100%; height:100%; object-fit:contain; display:block; }
+
+    /* 可编辑块（医生可编辑，患者只读） */
+    .editable{
+      border:1px solid #d1d5db;
+      border-radius:10px;
+      padding:10px 12px;
+      background:#fff;
+      min-height: 110px;
+      outline: none;
+      white-space: pre-wrap;
+      line-height: 1.55;
+    }
+    .readonly{
+      background:#f9fafb;
+      color:#333;
+    }
+    .editbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .status{
+      font-size:12px;
+      color:#555;
+    }
+    .input{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+    }
   </style>
 </head>
 <body>
   <div class="topbar">
     <div class="wrap">
-      <div><b>XUST医院云平台</b> <span class="badge">医学影像报告</span></div>
+      <div>
+        <b>XUST医院云平台</b>
+        <span class="badge">医学影像报告</span>
+        <span class="badge" id="roleBadge">角色</span>
+        <span class="badge" id="syncBadge">未同步</span>
+      </div>
       <div>
         <button class="btn" id="btnLogout" style="width:auto;">退出</button>
       </div>
@@ -106,6 +140,7 @@
   <div class="wrap">
     <div class="hblock">
       <h2>医学影像诊断报告</h2>
+      <div class="small">患者端会自动轮询云端数据；医生端可用 PAT 提交更新到 data/db.json。</div>
     </div>
 
     <div class="grid2">
@@ -130,13 +165,34 @@
         </div>
 
         <div class="card">
-          <div class="info-line"><strong>诊断证明：</strong></div>
-          <div class="textblock" id="diagnosis-proof"></div>
+          <div class="editbar">
+            <div><b>诊断证明</b></div>
+            <div class="status" id="diagStatus">—</div>
+          </div>
+          <div class="editable" id="diagnosis-proof" contenteditable="true"></div>
         </div>
 
         <div class="card">
-          <div class="info-line"><strong>医嘱：</strong></div>
-          <div class="textblock" id="medical-advice"></div>
+          <div class="editbar">
+            <div><b>医嘱</b></div>
+            <div class="status" id="advStatus">—</div>
+          </div>
+          <div class="editable" id="medical-advice" contenteditable="true"></div>
+        </div>
+
+        <!-- 医生端：PAT提交区 -->
+        <div class="card" id="doctorPanel" style="display:none;">
+          <div class="editbar">
+            <div><b>医生更新（云端提交）</b></div>
+            <div class="status" id="saveStatus">需要 PAT</div>
+          </div>
+          <div class="small">PAT：Fine-grained token，权限 Contents=Read and write，仓库选择本项目。</div>
+          <input class="input" id="pat" placeholder="github_pat_..." />
+          <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
+            <button class="btn" id="btnSaveCloud">保存到云端</button>
+            <button class="btn" id="btnReload">从云端刷新</button>
+          </div>
+          <div class="small" id="err" style="color:#b00020;margin-top:8px;"></div>
         </div>
       </div>
 
@@ -152,7 +208,6 @@
             <span class="small">未加载图像（可上传医学图像水印系统输出的医学图像）</span>
           </div>
 
-          <!-- 医学图像按钮：选择/清除/下载 -->
           <div class="toolrow">
             <label class="filebtn">
               选择文件
@@ -164,7 +219,6 @@
 
           <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
 
-          <!-- 二维码展示区 -->
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
             <div><b>QR码展示</b></div>
             <div class="small">将当前网址编码为QR码</div>
@@ -174,56 +228,180 @@
             <span class="small">未生成二维码</span>
           </div>
 
-          <!-- 二维码按钮：生成/下载（两列均匀） -->
           <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
             <button class="btn" id="btnGenQR">生成图像</button>
             <button class="btn" id="btnDownloadQR">下载图像</button>
           </div>
 
-          <div class="small" style="margin-top:10px;color:#555;">
-          </div>
+          <div class="small" style="margin-top:10px;color:#555;"></div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // 登录拦截（演示级）
-    if (localStorage.getItem("logged_in") !== "1") {
-      window.location.href = "login.html";
+    // ===== 0) 登录拦截 =====
+    try{
+      if (localStorage.getItem("logged_in") !== "1") location.href = "login.html";
+    }catch(e){
+      location.href = "login.html";
     }
 
     document.getElementById("btnLogout").onclick = () => {
-      localStorage.removeItem("logged_in");
-      window.location.href = "login.html";
+      try{
+        localStorage.removeItem("logged_in");
+        localStorage.removeItem("role");
+      }catch(e){}
+      location.href = "login.html";
     };
 
-    // 演示数据：按 code 生成不同信息
+    const role = (()=>{ try{return localStorage.getItem("role")||"patient";}catch(e){return "patient";} })();
+    document.getElementById("roleBadge").textContent = role === "doctor" ? "医生" : "患者";
+
+    // ===== 1) GitHub 云端配置（如有不同请修改）=====
+    const OWNER = "1JT2";
+    const REPO  = "Q";
+    const BRANCH = "main";
+    const DB_PATH = "data/db.json";
+    const POLL_MS = 4000;
+
+    function nowMs(){ return Date.now(); }
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code') || "001";
 
-    document.getElementById("patient-id").innerText = `P-${code}`;
-    document.getElementById("report-id").innerText = `R-${code}`;
-    document.getElementById("exam-date").innerText = "2025-07-10";
+    // ===== 2) DOM引用 =====
+    const $ = (id)=>document.getElementById(id);
+    const diagEl = $("diagnosis-proof");
+    const advEl  = $("medical-advice");
+    const diagStatus = $("diagStatus");
+    const advStatus  = $("advStatus");
+    const syncBadge  = $("syncBadge");
 
-    document.getElementById("patient-name").innerText = `患者${code}`;
-    document.getElementById("gender-age").innerText = "男 / 45";
-    document.getElementById("doctor-name").innerText = `张医生（工号 D-${code}）`;
-    document.getElementById("department").innerText = "胸外科";
+    // ===== 3) 读云端 db.json（raw，患者轮询用）=====
+    async function loadDbRaw(){
+      const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DB_PATH}?ts=${nowMs()}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) throw new Error("raw fetch failed");
+      return await res.json();
+    }
 
-    document.getElementById("image-meta").innerText = `CT，分辨率 512×512`;
-    document.getElementById("body-part").innerText = "胸部";
+    // ===== 4) 读云端文件 + sha（医生提交用）=====
+    async function ghGetFile(){
+      const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${DB_PATH}?ref=${encodeURIComponent(BRANCH)}`;
+      const res = await fetch(url, { headers: { "Accept":"application/vnd.github+json" } });
+      if(!res.ok) throw new Error(`GET contents failed: ${res.status}`);
+      return await res.json();
+    }
+    async function ghPutFile(token, message, contentText, sha){
+      const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${DB_PATH}`;
+      const body = {
+        message,
+        content: btoa(unescape(encodeURIComponent(contentText))),
+        branch: BRANCH,
+        sha
+      };
+      const res = await fetch(url, {
+        method:"PUT",
+        headers:{
+          "Accept":"application/vnd.github+json",
+          "Authorization":`Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      if(!res.ok){
+        const t = await res.text();
+        throw new Error(`PUT failed: ${res.status} ${t}`);
+      }
+      return await res.json();
+    }
 
-    document.getElementById("diagnosis-proof").innerText =
-`1）影像所见：未见明显占位性病变。
-2）诊断意见：建议结合临床症状随访。
-3）说明：本报告为演示内容。`;
+    // ===== 5) 角色控制 =====
+    function setEditableForRole(){
+      const isDoctor = (role === "doctor");
+      $("doctorPanel").style.display = isDoctor ? "" : "none";
 
-    document.getElementById("medical-advice").innerText =
-`建议：
-- 规律复查（3个月）
-- 若出现胸闷/咳嗽加重，及时就诊
-- 遵医嘱用药`;
+      diagEl.contentEditable = isDoctor ? "true" : "false";
+      advEl.contentEditable = isDoctor ? "true" : "false";
+
+      diagEl.classList.toggle("readonly", !isDoctor);
+      advEl.classList.toggle("readonly", !isDoctor);
+
+      diagStatus.textContent = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
+      advStatus.textContent  = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
+    }
+
+    // ===== 6) 渲染报告 =====
+    let lastUpdatedAt = 0;
+
+    function fillReport(r){
+      $("patient-id").textContent = r.patientId || `P-${code}`;
+      $("report-id").textContent  = r.reportId  || `R-${code}`;
+      $("exam-date").textContent  = r.examDate  || "—";
+
+      $("patient-name").textContent = r.patientName || `患者${code}`;
+      $("gender-age").textContent   = r.genderAge || "—";
+      $("doctor-name").textContent  = r.doctorName || "—";
+      $("department").textContent   = r.department || "—";
+
+      $("image-meta").textContent = r.imageMeta || "—";
+      $("body-part").textContent  = r.bodyPart || "—";
+
+      diagEl.textContent = r.diagnosisProof || "";
+      advEl.textContent  = r.medicalAdvice || "";
+    }
+
+    async function refreshFromCloud(){
+      const db = await loadDbRaw();
+      const report = (db.reports || []).find(x=>String(x.code)===String(code));
+      if(!report){
+        syncBadge.textContent = "未找到该code";
+        return;
+      }
+      if((report.updatedAt||0) !== lastUpdatedAt){
+        lastUpdatedAt = report.updatedAt || 0;
+        fillReport(report);
+        syncBadge.textContent = "已同步";
+      }else{
+        syncBadge.textContent = "无更新";
+      }
+    }
+
+    // ===== 7) 医生保存到云端 =====
+    $("btnSaveCloud")?.addEventListener("click", async ()=>{
+      $("err").textContent = "";
+      try{
+        const token = $("pat").value.trim();
+        if(!token){ $("err").textContent="需要 PAT 才能提交"; return; }
+
+        const file = await ghGetFile();
+        const text = decodeURIComponent(escape(atob(file.content.replace(/\n/g,""))));
+        const db = JSON.parse(text);
+
+        const report = (db.reports || []).find(x=>String(x.code)===String(code));
+        if(!report){ $("err").textContent="db.json 中找不到该 code"; return; }
+
+        report.diagnosisProof = diagEl.textContent;
+        report.medicalAdvice  = advEl.textContent;
+        report.updatedAt = nowMs();
+
+        await ghPutFile(token, `Update report ${code}`, JSON.stringify(db, null, 2), file.sha);
+        $("saveStatus").textContent = "提交成功";
+        await refreshFromCloud();
+      }catch(e){
+        $("saveStatus").textContent = "提交失败";
+        $("err").textContent = "提交失败：请检查 PAT 权限/仓库/分支/路径";
+      }
+    });
+
+    $("btnReload")?.addEventListener("click", async ()=>{
+      $("err").textContent = "";
+      try{ await refreshFromCloud(); }catch(e){ $("err").textContent="刷新失败"; }
+    });
+
+    // ===== 8) 启动轮询 =====
+    setEditableForRole();
+    refreshFromCloud().catch(()=>{});
+    setInterval(()=>{ refreshFromCloud().catch(()=>{}); }, POLL_MS);
 
     // -----------------------------
     // 通用：另存为（优先 showSaveFilePicker，失败则回退 a.download）
@@ -250,7 +428,6 @@
         return;
       }
 
-      // 回退：是否弹“另存为”由浏览器下载设置决定
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -268,7 +445,7 @@
     }
 
     // -----------------------------
-    // 医学图像：上传预览 / 清除 / 另存为下载
+    // 医学图像：上传预览 / 清除 / 另存为下载（仍是本地预览，不写云端）
     // -----------------------------
     const fileInput = document.getElementById("fileInput");
     const imgbox = document.getElementById("imgbox");
@@ -325,7 +502,7 @@
     }
 
     document.getElementById("btnGenQR").onclick = () => {
-      const urlToEncode = window.location.href; // 将当前网址编码为QR码
+      const urlToEncode = window.location.href;
       const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlToEncode)}`;
 
       currentQrUrl = qrImgSrc;
