@@ -22,7 +22,6 @@
     .hblock{ text-align:center; padding:8px 0; }
     .info-line{ margin:6px 0; display:flex; gap:10px; flex-wrap:wrap; }
     .info-line strong{ min-width:110px; color:#555; font-weight:700; }
-    .textblock{ white-space:pre-wrap; line-height:1.55; }
     .small{ font-size:12px; color:#555; }
 
     .imgbox{
@@ -37,12 +36,7 @@
       overflow:hidden;
       position:relative;
     }
-    .imgbox img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      display:block;
-    }
+    .imgbox img{ width:100%; height:100%; object-fit:contain; display:block; }
 
     .toolrow{
       display:grid;
@@ -69,11 +63,7 @@
     .filebtn:hover{ background:#f3f7fb; }
     .filebtn input{ display:none; }
 
-    .btn, .filebtn{
-      font-size: 14px;
-      line-height: 20px;
-      font-weight: 600;
-    }
+    .btn, .filebtn{ font-size:14px; line-height:20px; font-weight:600; }
 
     .qrbox{
       width:100%;
@@ -93,32 +83,15 @@
       border-radius:10px;
       padding:10px 12px;
       background:#fff;
-      min-height: 110px;
-      outline: none;
-      white-space: pre-wrap;
-      line-height: 1.55;
+      min-height:110px;
+      outline:none;
+      white-space:pre-wrap;
+      line-height:1.55;
     }
-    .readonly{
-      background:#f9fafb;
-      color:#333;
-    }
-    .editbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      margin-bottom:8px;
-    }
-    .status{
-      font-size:12px;
-      color:#555;
-    }
-    .input{
-      width:100%;
-      padding:10px 12px;
-      border:1px solid #d1d5db;
-      border-radius:10px;
-    }
+    .readonly{ background:#f9fafb; color:#333; }
+    .editbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+    .status{ font-size:12px; color:#555; }
+    .input{ width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; }
   </style>
 </head>
 <body>
@@ -139,11 +112,11 @@
   <div class="wrap">
     <div class="hblock">
       <h2>医学影像诊断报告</h2>
-      <div class="small">患者端轮询云端 db.json；医生端用 PAT 上传医学图像并更新诊断/医嘱/二维码。</div>
+      <div class="small">患者端轮询云端 db.json；医生端用 PAT 在左侧“云端操作”一键保存（含诊断/医嘱/可选图像上传）。</div>
     </div>
 
     <div class="grid2">
-      <!-- 左：信息 -->
+      <!-- 左：信息 + 编辑 + 云端操作 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="card">
           <div class="info-line"><strong>就诊号：</strong><span id="patient-id"></span></div>
@@ -179,23 +152,25 @@
           <div class="editable" id="medical-advice" contenteditable="true"></div>
         </div>
 
-        <!-- 医生端：PAT + 云端操作 -->
         <div class="card" id="doctorPanel" style="display:none;">
           <div class="editbar">
-            <div><b>医生云端操作</b></div>
+            <div><b>云端操作</b></div>
             <div class="status" id="saveStatus">需要 PAT</div>
           </div>
           <div class="small">PAT（Fine-grained）：仓库选择 <b>re</b>；权限 Contents=Read and write。</div>
           <input class="input" id="pat" placeholder="github_pat_..." />
           <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
-            <button class="btn" id="btnSaveCloud">保存诊断/医嘱到云端</button>
+            <button class="btn" id="btnSaveCloud">保存到云端</button>
             <button class="btn" id="btnReload">从云端刷新</button>
           </div>
           <div class="small" id="err" style="color:#b00020;margin-top:8px;"></div>
+          <div class="small" style="margin-top:8px;color:#555;">
+            说明：如果右侧已选择医学图像文件，保存到云端时会自动上传到仓库并写回 db.json 的 imageUrl。
+          </div>
         </div>
       </div>
 
-      <!-- 右：医学图像 + QR -->
+      <!-- 右：医学图像展示 + QR（不入库） -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="card">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
@@ -207,9 +182,9 @@
             <span class="small">未加载图像（等待云端 imageUrl 或本地预览）</span>
           </div>
 
-          <!-- 医学图像按钮：选择/清除/下载 -->
+          <!-- 只保留：选择/清除预览/下载（不再有“上传到云端”按钮） -->
           <div class="toolrow">
-            <label class="filebtn" id="fileBtnWrap">
+            <label class="filebtn">
               选择文件
               <input type="file" id="fileInput" accept="image/*"/>
             </label>
@@ -217,17 +192,11 @@
             <button class="btn" id="btnDownloadImg">下载图像</button>
           </div>
 
-          <!-- 医生：上传到云端 -->
-          <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;" id="uploadRow">
-            <button class="btn" id="btnUploadCloud">上传医学图像到云端</button>
-            <button class="btn" id="btnRemoveCloudImg">移除云端图像引用</button>
-          </div>
-
           <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
 
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
             <div><b>QR码展示</b></div>
-            <div class="small">云端保存 qrTargetUrl</div>
+            <div class="small">将当前网址编码为QR码（不保存云端）</div>
           </div>
 
           <div class="qrbox" id="qrbox">
@@ -235,8 +204,8 @@
           </div>
 
           <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
-            <button class="btn" id="btnGenQR">生成并保存到云端</button>
-            <button class="btn" id="btnDownloadQR">下载二维码</button>
+            <button class="btn" id="btnGenQR">生成图像</button>
+            <button class="btn" id="btnDownloadQR">下载图像</button>
           </div>
 
           <div class="small" style="margin-top:10px;color:#555;"></div>
@@ -264,10 +233,10 @@
     const role = (()=>{ try{return localStorage.getItem("role")||"patient";}catch(e){return "patient";} })();
     document.getElementById("roleBadge").textContent = role === "doctor" ? "医生" : "患者";
 
-    // ===== 1) GitHub 云端配置（按你的实际仓库）=====
+    // ===== 1) GitHub 配置 =====
     const OWNER = "1JT2";
-    const REPO  = "re";     // ✅你说的真实项目
-    const BRANCH = "main";  // 若是 master 就改成 "master"
+    const REPO  = "re";
+    const BRANCH = "main";     // 如果是 master 请改
     const DB_PATH = "data/db.json";
     const POLL_MS = 4000;
 
@@ -282,7 +251,7 @@
     const advStatus  = $("advStatus");
     const syncBadge  = $("syncBadge");
 
-    // ===== 2) GitHub 读写工具 =====
+    // ===== 2) GitHub API =====
     async function loadDbRaw(){
       const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DB_PATH}?ts=${nowMs()}`;
       const res = await fetch(url, { cache: "no-store" });
@@ -299,11 +268,7 @@
 
     async function ghPutFile(token, path, message, base64Content, sha){
       const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`;
-      const body = {
-        message,
-        content: base64Content,
-        branch: BRANCH
-      };
+      const body = { message, content: base64Content, branch: BRANCH };
       if (sha) body.sha = sha;
 
       const res = await fetch(url, {
@@ -327,7 +292,6 @@
       return btoa(unescape(encodeURIComponent(text)));
     }
 
-    // 读取/更新 db.json：自动处理 409 冲突重试一次
     async function updateDbWithRetry(token, updaterFn, maxRetry = 1) {
       let attempt = 0;
       while(true){
@@ -343,10 +307,7 @@
         }catch(e){
           const msg = (e && e.message) ? e.message : "";
           const is409 = msg.includes("409") || msg.includes("does not match");
-          if(is409 && attempt < maxRetry){
-            attempt += 1;
-            continue;
-          }
+          if(is409 && attempt < maxRetry){ attempt += 1; continue; }
           throw e;
         }
       }
@@ -357,7 +318,6 @@
       const isDoctor = (role === "doctor");
       $("doctorPanel").style.display = isDoctor ? "" : "none";
 
-      // 医生可编辑，患者只读
       diagEl.contentEditable = isDoctor ? "true" : "false";
       advEl.contentEditable  = isDoctor ? "true" : "false";
       diagEl.classList.toggle("readonly", !isDoctor);
@@ -366,25 +326,22 @@
       diagStatus.textContent = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
       advStatus.textContent  = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
 
-      // 图像上传按钮：患者隐藏云端上传行
-      $("uploadRow").style.display = isDoctor ? "" : "none";
-      $("fileBtnWrap").style.display = isDoctor ? "" : "none"; // 患者不允许选择本地上传
-      $("btnClearImg").textContent = isDoctor ? "清除预览" : "清除本地缓存";
+      // 患者不允许选择本地文件（避免误解）
+      $("fileInput").disabled = !isDoctor;
+      $("btnClearImg").disabled = !isDoctor;
     }
 
-    // ===== 4) 页面渲染 =====
+    // ===== 4) 渲染 =====
     let lastUpdatedAt = 0;
-    let currentImageUrl = null;   // 云端imageUrl
+    let currentImageUrl = null;
     let currentImageName = "medical_image.png";
 
-    // QR：云端存 qrTargetUrl（页面展示用 qrserver 生成的图片）
-    let currentQrTargetUrl = null;
     let currentQrImgUrl = null;
 
     function setImgPlaceholder(){
-      $("imgbox").innerHTML = '<span class="small">未加载图像（等待云端 imageUrl）</span>';
+      $("imgbox").innerHTML = '<span class="small">未加载图像（等待云端 imageUrl 或本地预览）</span>';
     }
-    function showImgByUrl(url){
+    function showImg(url){
       const box = $("imgbox");
       box.innerHTML = "";
       const img = document.createElement("img");
@@ -395,9 +352,8 @@
     function setQrPlaceholder(){
       $("qrbox").innerHTML = '<span class="small">未生成二维码</span>';
     }
-    function showQrByTarget(targetUrl){
-      currentQrTargetUrl = targetUrl;
-      currentQrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(targetUrl)}`;
+    function showQr(urlToEncode){
+      currentQrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlToEncode)}`;
       const box = $("qrbox");
       box.innerHTML = "";
       const img = document.createElement("img");
@@ -410,41 +366,27 @@
       $("patient-id").textContent = r.patientId || `P-${code}`;
       $("report-id").textContent  = r.reportId  || `R-${code}`;
       $("exam-date").textContent  = r.examDate  || "—";
-
       $("patient-name").textContent = r.patientName || `患者${code}`;
       $("gender-age").textContent   = r.genderAge || "—";
       $("doctor-name").textContent  = r.doctorName || "—";
       $("department").textContent   = r.department || "—";
-
       $("image-meta").textContent = r.imageMeta || "—";
       $("body-part").textContent  = r.bodyPart || "—";
 
       diagEl.textContent = r.diagnosisProof || "";
       advEl.textContent  = r.medicalAdvice || "";
 
-      // 云端图像：imageUrl
       currentImageUrl = r.imageUrl || null;
       currentImageName = r.imageName || "medical_image.png";
-      if(currentImageUrl) showImgByUrl(currentImageUrl);
+      if(currentImageUrl) showImg(currentImageUrl);
       else setImgPlaceholder();
-
-      // 云端二维码：qrTargetUrl
-      if(r.qrTargetUrl){
-        showQrByTarget(r.qrTargetUrl);
-      }else{
-        currentQrTargetUrl = null;
-        currentQrImgUrl = null;
-        setQrPlaceholder();
-      }
     }
 
     async function refreshFromCloud(){
       const db = await loadDbRaw();
       const report = (db.reports || []).find(x=>String(x.code)===String(code));
-      if(!report){
-        syncBadge.textContent = "未找到该code";
-        return;
-      }
+      if(!report){ syncBadge.textContent = "未找到该code"; return; }
+
       if((report.updatedAt||0) !== lastUpdatedAt){
         lastUpdatedAt = report.updatedAt || 0;
         fillReport(report);
@@ -454,12 +396,67 @@
       }
     }
 
-    // ===== 5) 保存诊断/医嘱到云端 =====
+    // ===== 5) 本地选择图像（仅预览，上传发生在“保存到云端”按钮里） =====
+    const fileInput = $("fileInput");
+    let localPreviewObjectUrl = null;
+    let selectedFile = null;
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      selectedFile = file;
+
+      if (localPreviewObjectUrl) URL.revokeObjectURL(localPreviewObjectUrl);
+      localPreviewObjectUrl = URL.createObjectURL(file);
+      showImg(localPreviewObjectUrl);
+    });
+
+    $("btnClearImg").onclick = () => {
+      if (localPreviewObjectUrl) URL.revokeObjectURL(localPreviewObjectUrl);
+      localPreviewObjectUrl = null;
+      selectedFile = null;
+      try{ fileInput.value = ""; }catch(e){}
+      if(currentImageUrl) showImg(currentImageUrl);
+      else setImgPlaceholder();
+    };
+
+    // ===== 6) 一键“保存到云端”：保存文字 +（若选了图像）上传图像并写回 imageUrl =====
+    async function uploadImageIfSelected(token){
+      if(!selectedFile) return null;
+
+      const ext = (selectedFile.name.split(".").pop() || "png").toLowerCase();
+      const safeExt = ["png","jpg","jpeg","bmp","webp"].includes(ext) ? ext : "png";
+      const uploadPath = `assets/uploads/${code}_${nowMs()}.${safeExt}`;
+
+      // file -> base64
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      const chunk = 0x8000;
+      for(let i=0;i<bytes.length;i+=chunk){
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+      }
+      const base64 = btoa(binary);
+
+      await ghPutFile(token, uploadPath, `Upload image for ${code}`, base64, null);
+
+      const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${uploadPath}`;
+      const imageName = selectedFile.name || `medical_image.${safeExt}`;
+
+      selectedFile = null;
+      try{ fileInput.value = ""; }catch(e){}
+
+      return { rawUrl, imageName };
+    }
+
     $("btnSaveCloud")?.addEventListener("click", async ()=>{
       $("err").textContent = "";
       try{
         const token = $("pat").value.trim();
         if(!token){ $("err").textContent="需要 PAT 才能提交"; return; }
+
+        $("saveStatus").textContent = "正在保存...";
+        const img = await uploadImageIfSelected(token);
 
         await updateDbWithRetry(token, (db)=>{
           if(!Array.isArray(db.reports)) db.reports = [];
@@ -468,8 +465,15 @@
             report = { code: String(code), updatedAt: 0 };
             db.reports.push(report);
           }
+
           report.diagnosisProof = diagEl.textContent;
           report.medicalAdvice  = advEl.textContent;
+
+          if(img){
+            report.imageUrl = img.rawUrl;
+            report.imageName = img.imageName;
+          }
+
           report.updatedAt = nowMs();
         }, 1);
 
@@ -487,148 +491,7 @@
       try{ await refreshFromCloud(); }catch(e){ $("err").textContent="刷新失败"; }
     });
 
-    // ===== 6) 医学图像：本地预览 + 云端上传（路线2） =====
-    const fileInput = $("fileInput");
-    let localPreviewObjectUrl = null;
-    let selectedFile = null;
-
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files && fileInput.files[0];
-      if (!file) return;
-      selectedFile = file;
-
-      if (localPreviewObjectUrl) URL.revokeObjectURL(localPreviewObjectUrl);
-      localPreviewObjectUrl = URL.createObjectURL(file);
-      showImgByUrl(localPreviewObjectUrl);
-    });
-
-    $("btnClearImg").onclick = () => {
-      if (localPreviewObjectUrl) URL.revokeObjectURL(localPreviewObjectUrl);
-      localPreviewObjectUrl = null;
-      selectedFile = null;
-      try{ fileInput.value = ""; }catch(e){}
-      // 不动云端，只清预览
-      if(currentImageUrl) showImgByUrl(currentImageUrl);
-      else setImgPlaceholder();
-    };
-
-    // 上传：把文件提交到 assets/uploads/xxx.ext，再写回 db.json: imageUrl/imageName
-    $("btnUploadCloud")?.addEventListener("click", async ()=>{
-      $("err").textContent = "";
-      try{
-        const token = $("pat").value.trim();
-        if(!token){ $("err").textContent="上传图像需要 PAT"; return; }
-        if(!selectedFile){ $("err").textContent="请先选择一个医学图像文件"; return; }
-
-        const ext = (selectedFile.name.split(".").pop() || "png").toLowerCase();
-        const safeExt = ["png","jpg","jpeg","bmp","webp"].includes(ext) ? ext : "png";
-        const uploadPath = `assets/uploads/${code}_${nowMs()}.${safeExt}`;
-
-        // 读文件 -> base64
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        const chunk = 0x8000;
-        for(let i=0;i<bytes.length;i+=chunk){
-          binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
-        }
-        const base64 = btoa(binary);
-
-        // 如果同名文件存在，需要 sha；我们用 try-get
-        let sha = null;
-        try{
-          const existing = await ghGetFile(uploadPath);
-          sha = existing.sha;
-        }catch(e){
-          // 404 则新建文件即可
-          sha = null;
-        }
-
-        // 1) 上传图片文件到仓库
-        await ghPutFile(token, uploadPath, `Upload image for ${code}`, base64, sha);
-
-        // 2) 写回 db.json 存 imageUrl
-        const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${uploadPath}`;
-        await updateDbWithRetry(token, (db)=>{
-          if(!Array.isArray(db.reports)) db.reports = [];
-          let report = db.reports.find(x=>String(x.code)===String(code));
-          if(!report){
-            report = { code: String(code), updatedAt: 0 };
-            db.reports.push(report);
-          }
-          report.imageUrl = rawUrl;
-          report.imageName = selectedFile.name || `medical_image.${safeExt}`;
-          report.updatedAt = nowMs();
-        }, 1);
-
-        $("saveStatus").textContent = "图像上传成功";
-        selectedFile = null;
-        try{ fileInput.value = ""; }catch(e){}
-        await refreshFromCloud();
-      }catch(e){
-        $("saveStatus").textContent = "图像上传失败";
-        $("err").textContent = e && e.message ? e.message : "图像上传失败（未知错误）";
-        console.error(e);
-      }
-    });
-
-    // 仅移除云端引用（不删除仓库里的图片文件）
-    $("btnRemoveCloudImg")?.addEventListener("click", async ()=>{
-      $("err").textContent = "";
-      try{
-        const token = $("pat").value.trim();
-        if(!token){ $("err").textContent="需要 PAT"; return; }
-
-        await updateDbWithRetry(token, (db)=>{
-          if(!Array.isArray(db.reports)) db.reports = [];
-          let report = db.reports.find(x=>String(x.code)===String(code));
-          if(!report){ report = { code: String(code), updatedAt: 0 }; db.reports.push(report); }
-          report.imageUrl = "";
-          report.imageName = "";
-          report.updatedAt = nowMs();
-        }, 1);
-
-        $("saveStatus").textContent = "已移除云端图像引用";
-        await refreshFromCloud();
-      }catch(e){
-        $("saveStatus").textContent = "操作失败";
-        $("err").textContent = e && e.message ? e.message : "操作失败";
-        console.error(e);
-      }
-    });
-
-    // ===== 7) 二维码：生成并保存到云端（只存 targetUrl） =====
-    $("btnGenQR").onclick = async () => {
-      $("err").textContent = "";
-      try{
-        const token = $("pat").value.trim();
-        if(role !== "doctor"){
-          alert("患者端不允许写云端二维码。请用医生账号生成。");
-          return;
-        }
-        if(!token){ $("err").textContent="生成二维码并保存到云端需要 PAT"; return; }
-
-        // 你要编码的网址：当前页面URL（带 code）
-        const targetUrl = window.location.href;
-
-        await updateDbWithRetry(token, (db)=>{
-          if(!Array.isArray(db.reports)) db.reports = [];
-          let report = db.reports.find(x=>String(x.code)===String(code));
-          if(!report){ report = { code: String(code), updatedAt: 0 }; db.reports.push(report); }
-          report.qrTargetUrl = targetUrl;
-          report.updatedAt = nowMs();
-        }, 1);
-
-        $("saveStatus").textContent = "二维码已保存到云端";
-        await refreshFromCloud();
-      }catch(e){
-        $("saveStatus").textContent = "二维码保存失败";
-        $("err").textContent = e && e.message ? e.message : "二维码保存失败";
-        console.error(e);
-      }
-    };
-
-    // ===== 8) 下载：另存为（图片/二维码） =====
+    // ===== 7) 下载（另存为） =====
     async function saveAsBlob(blob, filename) {
       if (window.showSaveFilePicker) {
         const ext = (filename.split(".").pop() || "png").toLowerCase();
@@ -674,6 +537,12 @@
       }
     };
 
+    // ===== 8) QR：只生成，不保存云端 =====
+    $("btnGenQR").onclick = () => {
+      const urlToEncode = window.location.href;
+      showQr(urlToEncode);
+    };
+
     $("btnDownloadQR").onclick = async () => {
       try{
         if(!currentQrImgUrl){ alert("请先生成二维码"); return; }
@@ -688,6 +557,8 @@
     setEditableForRole();
     refreshFromCloud().catch(()=>{});
     setInterval(()=>{ refreshFromCloud().catch(()=>{}); }, POLL_MS);
+    setImgPlaceholder();
+    setQrPlaceholder();
   </script>
 </body>
 </html>
