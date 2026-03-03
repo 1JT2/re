@@ -44,10 +44,10 @@
         </div>
       </div>
 
-      <div style="margin-top:12px;">
+      <!-- <div style="margin-top:12px;">
         <!-- <label>访问码（可选，用于演示显示不同患者信息）</label> -->
         <input id="code" placeholder="例如 001（也可不填）" />
-      </div>
+      </div> -->
 
       <div style="margin-top:12px;">
         <button id="btnLogin">登录并进入报告</button>
@@ -67,7 +67,7 @@
     document.getElementById("btnLogin").onclick = () => {
       const u = document.getElementById("username").value.trim();
       const p = document.getElementById("password").value;
-      const code = document.getElementById("code").value.trim() || "001";
+      const code = "001";
 
       if (u === FIXED_USER && p === FIXED_PASS) {
         // 简化：把登录状态写到 localStorage（演示）
