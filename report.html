@@ -11,7 +11,7 @@
     .topbar{ background:#fff; border-bottom:1px solid #e7e7e7; }
     .topbar .wrap{ max-width:var(--max); margin:0 auto; padding:14px 16px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
     .wrap{ max-width:var(--max); margin:0 auto; padding:16px; }
-    .btn{ padding:8px 10px; border-radius:10px; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
+    .btn{ padding:8px 10px; border-radius:10px; border:1px solid #d1d5db; background:#fff; cursor:pointer; width:100%; }
     .btn:hover{ background:#f3f7fb; }
     .badge{ font-size:12px; padding:4px 8px; border-radius:999px; background:#f1f1f1; }
     .grid2{ display:grid; grid-template-columns: 1fr; gap:12px; }
@@ -71,10 +71,17 @@
     .filebtn:hover{ background:#f3f7fb; }
     .filebtn input{ display:none; }
 
-    /* 二维码展示框 */
+    /* 统一按钮字体与高度（修复字体不一致） */
+    .btn, .filebtn{
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+
+    /* 二维码展示框：与医学图像展示框同尺寸（修复大小不一致） */
     .qrbox{
       width:100%;
-      aspect-ratio: 1/1;
+      aspect-ratio: 4/3; /* 与 .imgbox 一致 */
       border:1px dashed #c6cdd6;
       border-radius:10px;
       background:#f6f8fa;
@@ -91,7 +98,7 @@
     <div class="wrap">
       <div><b>XUST医院云平台</b> <span class="badge">医学影像报告</span></div>
       <div>
-        <button class="btn" id="btnLogout">退出</button>
+        <button class="btn" id="btnLogout" style="width:auto;">退出</button>
       </div>
     </div>
   </div>
@@ -285,7 +292,7 @@
       qrbox.innerHTML = "";
       const img = document.createElement("img");
       img.src = qrImgSrc;
-      img.alt = "访问二维码";
+      img.alt = "QR码展示";
       qrbox.appendChild(img);
     };
 
