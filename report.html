@@ -24,8 +24,6 @@
       font-weight:600;
     }
     .btn:hover{ background:#f3f7fb; }
-
-    /* 禁用态：置灰 + 禁止交互 */
     .btn:disabled{
       background:#f1f1f1;
       color:#9aa0a6;
@@ -44,7 +42,6 @@
 
     .info-line{ margin:6px 0; display:flex; gap:10px; flex-wrap:wrap; }
     .info-line strong{ min-width:110px; color:#555; font-weight:700; }
-
     .small{ font-size:12px; color:#555; }
 
     .imgbox{
@@ -104,13 +101,6 @@
       margin-bottom:8px;
     }
     .status{ font-size:12px; color:#555; }
-
-    .input{
-      width:100%;
-      padding:10px 12px;
-      border:1px solid #d1d5db;
-      border-radius:10px;
-    }
   </style>
 </head>
 <body>
@@ -173,9 +163,8 @@
         <div class="card" id="doctorPanel" style="display:none;">
           <div class="editbar">
             <div><b>云端操作</b></div>
-            <div class="status" id="saveStatus">需要 Token</div>
+            <div class="status" id="saveStatus">—</div>
           </div>
-          <input class="input" id="pat" placeholder="Token" />
           <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
             <button class="btn" id="btnSaveCloud">保存到云端</button>
             <button class="btn" id="btnReload">从云端刷新</button>
@@ -225,6 +214,12 @@
   </div>
 
   <script>
+    // =========================
+    // 演示用：把 token 写死在前端
+    // ⚠️ 任何人都能看到并使用！演示结束请撤销 token。
+    // =========================
+    const GITHUB_TOKEN = "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";
+
     // ===== 0) 登录拦截 =====
     try{
       if (localStorage.getItem("logged_in") !== "1") location.href = "login.html";
@@ -339,8 +334,6 @@
       // 患者端：选择文件、清除预览 置灰禁用
       $("btnPickFile").disabled = !isDoctor;
       $("btnClearImg").disabled = !isDoctor;
-
-      // file input 也禁用（避免通过键盘/脚本触发）
       $("fileInput").disabled = !isDoctor;
     }
 
@@ -409,14 +402,13 @@
       }
     }
 
-    // ===== 5) 本地选图（预览）+ 清除预览（医生可用） =====
+    // ===== 5) 本地选图预览（医生可用）+ 清除预览修复 =====
     const fileInput = $("fileInput");
     const btnPickFile = $("btnPickFile");
     let localPreviewObjectUrl = null;
     let selectedFile = null;
 
     btnPickFile.onclick = () => {
-      // 如果禁用了按钮，这里不会触发；保底判断
       if (btnPickFile.disabled) return;
       fileInput.click();
     };
@@ -440,15 +432,13 @@
       }
       selectedFile = null;
 
-      // 强制清空 input，保证下次选同一个文件也能触发 change
       try { fileInput.value = ""; } catch(e){}
 
-      // 恢复云端图像（如果存在）否则占位
       if (currentImageUrl) showImg(currentImageUrl);
       else setImgPlaceholder();
     };
 
-    // ===== 6) 一键保存到云端：文字 +（若选了图像且为医生）上传并写回 imageUrl =====
+    // ===== 6) 保存到云端：文字 +（若选了图像且为医生）上传并写回 imageUrl =====
     async function uploadImageIfSelected(token){
       if(!selectedFile) return null;
 
@@ -479,8 +469,11 @@
     $("btnSaveCloud")?.addEventListener("click", async ()=>{
       $("err").textContent = "";
       try{
-        const token = $("pat").value.trim();
-        if(!token){ $("err").textContent="需要 Token 才能提交"; return; }
+        const token = GITHUB_TOKEN.trim();
+        if(!token){
+          $("err").textContent = "Token 未配置";
+          return;
+        }
 
         $("saveStatus").textContent = "正在保存...";
 
