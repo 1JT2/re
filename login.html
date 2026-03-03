@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>登录 - 医院云平台（演示）</title>
+  <title>登录 - XUST医院云平台</title>
   <style>
     :root { --max: 980px; }
     *{ box-sizing:border-box; }
@@ -24,8 +24,8 @@
 <body>
   <div class="topbar">
     <div class="wrap">
-      <div><b>医院云平台（演示）</b></div>
-      <div class="small">固定登录（毕业设计演示）</div>
+      <div><b>XUST医院云平台</b></div>
+      <div class="small">登录</div>
     </div>
   </div>
 
@@ -36,7 +36,7 @@
       <div class="grid">
         <div>
           <label>用户名</label>
-          <input id="username" placeholder="例如 doctor" />
+          <input id="username" placeholder="例如 aaa" />
         </div>
         <div>
           <label>密码</label>
@@ -44,24 +44,24 @@
         </div>
       </div>
 
-      <div style="margin-top:12px;">
+      <!-- <div style="margin-top:12px;">
         <label>访问码（可选，用于演示显示不同患者信息）</label>
         <input id="code" placeholder="例如 001（也可不填）" />
-      </div>
+      </div> -->
 
       <div style="margin-top:12px;">
         <button id="btnLogin">登录并进入报告</button>
       </div>
 
       <div class="small" style="margin-top:10px;">
-        演示账号：<b>doctor</b> / <b>123456</b>
+        演示账号：<b>aaa</b> / <b>123456</b>
       </div>
       <div id="err" class="err"></div>
     </div>
   </div>
 
   <script>
-    const FIXED_USER = "doctor";
+    const FIXED_USER = "aaa";
     const FIXED_PASS = "123456";
 
     document.getElementById("btnLogin").onclick = () => {
