@@ -11,17 +11,32 @@
     .topbar{ background:#fff; border-bottom:1px solid #e7e7e7; }
     .topbar .wrap{ max-width:var(--max); margin:0 auto; padding:14px 16px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
     .wrap{ max-width:var(--max); margin:0 auto; padding:16px; }
-    .btn{ padding:8px 10px; border-radius:10px; border:1px solid #d1d5db; background:#fff; cursor:pointer; width:100%; }
+
+    .btn{
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid #d1d5db;
+      background:#fff;
+      cursor:pointer;
+      width:100%;
+      font-size:14px;
+      line-height:20px;
+      font-weight:600;
+    }
     .btn:hover{ background:#f3f7fb; }
+
     .badge{ font-size:12px; padding:4px 8px; border-radius:999px; background:#f1f1f1; }
+
     .grid2{ display:grid; grid-template-columns: 1fr; gap:12px; }
     @media (min-width: 900px){ .grid2{ grid-template-columns: 1.35fr 0.65fr; } }
 
     .card{ background:#fff; border:1px solid #e7e7e7; border-radius:12px; padding:14px 12px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
     h1,h2{ margin:0; }
     .hblock{ text-align:center; padding:8px 0; }
+
     .info-line{ margin:6px 0; display:flex; gap:10px; flex-wrap:wrap; }
     .info-line strong{ min-width:110px; color:#555; font-weight:700; }
+
     .small{ font-size:12px; color:#555; }
 
     .imgbox{
@@ -48,23 +63,6 @@
       .toolrow{ grid-template-columns: 1fr; }
     }
 
-    .filebtn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid #d1d5db;
-      border-radius:10px;
-      background:#fff;
-      cursor:pointer;
-      padding:8px 10px;
-      user-select:none;
-      width:100%;
-    }
-    .filebtn:hover{ background:#f3f7fb; }
-    .filebtn input{ display:none; }
-
-    .btn, .filebtn{ font-size:14px; line-height:20px; font-weight:600; }
-
     .qrbox{
       width:100%;
       aspect-ratio: 4/3;
@@ -89,9 +87,22 @@
       line-height:1.55;
     }
     .readonly{ background:#f9fafb; color:#333; }
-    .editbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+
+    .editbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+    }
     .status{ font-size:12px; color:#555; }
-    .input{ width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:10px; }
+
+    .input{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+    }
   </style>
 </head>
 <body>
@@ -154,22 +165,18 @@
         <div class="card" id="doctorPanel" style="display:none;">
           <div class="editbar">
             <div><b>云端操作</b></div>
-            <div class="status" id="saveStatus">需要 PAT</div>
+            <div class="status" id="saveStatus">需要 Token</div>
           </div>
-          <div class="small">PAT（Fine-grained）：仓库选择 <b>re</b>；权限 Contents=Read and write。</div>
-          <input class="input" id="pat" placeholder="github_pat_..." />
+          <input class="input" id="pat" placeholder="Token" />
           <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
             <button class="btn" id="btnSaveCloud">保存到云端</button>
             <button class="btn" id="btnReload">从云端刷新</button>
           </div>
           <div class="small" id="err" style="color:#b00020;margin-top:8px;"></div>
-          <div class="small" style="margin-top:8px;color:#555;">
-            说明：如果右侧已选择医学图像文件，保存到云端时会自动上传到仓库并写回 db.json 的 imageUrl。
-          </div>
         </div>
       </div>
 
-      <!-- 右：医学图像展示 + QR（不入库） -->
+      <!-- 右：医学图像展示 + QR -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="card">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
@@ -177,15 +184,14 @@
           </div>
 
           <div class="imgbox" id="imgbox">
-            <span class="small">未加载图像（等待云端 imageUrl 或本地预览）</span>
+            <span class="small">未加载图像</span>
           </div>
 
-          <!-- 只保留：选择/清除预览/下载（不再有“上传到云端”按钮） -->
+          <!-- 选择文件改为普通按钮；file input 隐藏 -->
+          <input type="file" id="fileInput" accept="image/*" style="display:none;"/>
+
           <div class="toolrow">
-            <label class="filebtn">
-              选择文件
-              <input type="file" id="fileInput" accept="image/*"/>
-            </label>
+            <button class="btn" id="btnPickFile">选择文件</button>
             <button class="btn" id="btnClearImg">清除预览</button>
             <button class="btn" id="btnDownloadImg">下载图像</button>
           </div>
@@ -320,12 +326,8 @@
       diagEl.classList.toggle("readonly", !isDoctor);
       advEl.classList.toggle("readonly", !isDoctor);
 
-      diagStatus.textContent = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
-      advStatus.textContent  = isDoctor ? "可编辑（保存到云端）" : "只读（云端自动刷新）";
-
-      // 患者不允许选择本地文件（避免误解）
-      $("fileInput").disabled = !isDoctor;
-      $("btnClearImg").disabled = !isDoctor;
+      diagStatus.textContent = isDoctor ? "可编辑" : "只读";
+      advStatus.textContent  = isDoctor ? "可编辑" : "只读";
     }
 
     // ===== 4) 渲染 =====
@@ -336,7 +338,7 @@
     let currentQrImgUrl = null;
 
     function setImgPlaceholder(){
-      $("imgbox").innerHTML = '<span class="small">未加载图像（等待云端 imageUrl 或本地预览）</span>';
+      $("imgbox").innerHTML = '<span class="small">未加载图像</span>';
     }
     function showImg(url){
       const box = $("imgbox");
@@ -393,10 +395,15 @@
       }
     }
 
-    // ===== 5) 本地选择图像（仅预览，上传发生在“保存到云端”按钮里） =====
+    // ===== 5) 本地选图（预览）+ 清除预览修复 =====
     const fileInput = $("fileInput");
+    const btnPickFile = $("btnPickFile");
     let localPreviewObjectUrl = null;
     let selectedFile = null;
+
+    btnPickFile.onclick = () => {
+      fileInput.click();
+    };
 
     fileInput.addEventListener("change", () => {
       const file = fileInput.files && fileInput.files[0];
@@ -409,15 +416,22 @@
     });
 
     $("btnClearImg").onclick = () => {
-      if (localPreviewObjectUrl) URL.revokeObjectURL(localPreviewObjectUrl);
-      localPreviewObjectUrl = null;
+      // 1) 释放并清空本地预览
+      if (localPreviewObjectUrl) {
+        URL.revokeObjectURL(localPreviewObjectUrl);
+        localPreviewObjectUrl = null;
+      }
       selectedFile = null;
-      try{ fileInput.value = ""; }catch(e){}
-      if(currentImageUrl) showImg(currentImageUrl);
+
+      // 2) 强制清空 input，避免重复选择同一文件不触发 change
+      try { fileInput.value = ""; } catch(e){}
+
+      // 3) 恢复云端图像（如果存在）否则占位
+      if (currentImageUrl) showImg(currentImageUrl);
       else setImgPlaceholder();
     };
 
-    // ===== 6) 一键“保存到云端”：保存文字 +（若选了图像）上传图像并写回 imageUrl =====
+    // ===== 6) 一键保存到云端：文字 +（若选了图像且为医生）上传并写回 imageUrl =====
     async function uploadImageIfSelected(token){
       if(!selectedFile) return null;
 
@@ -425,7 +439,6 @@
       const safeExt = ["png","jpg","jpeg","bmp","webp"].includes(ext) ? ext : "png";
       const uploadPath = `assets/uploads/${code}_${nowMs()}.${safeExt}`;
 
-      // file -> base64
       const arrayBuffer = await selectedFile.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       let binary = "";
@@ -440,8 +453,9 @@
       const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${uploadPath}`;
       const imageName = selectedFile.name || `medical_image.${safeExt}`;
 
+      // 上传后清空选择，避免重复上传
       selectedFile = null;
-      try{ fileInput.value = ""; }catch(e){}
+      try { fileInput.value = ""; } catch(e){}
 
       return { rawUrl, imageName };
     }
@@ -450,10 +464,15 @@
       $("err").textContent = "";
       try{
         const token = $("pat").value.trim();
-        if(!token){ $("err").textContent="需要 PAT 才能提交"; return; }
+        if(!token){ $("err").textContent="需要 Token 才能提交"; return; }
 
         $("saveStatus").textContent = "正在保存...";
-        const img = await uploadImageIfSelected(token);
+
+        // 只有医生才允许上传图像到云端；患者即使选了图也不会上传
+        let img = null;
+        if (role === "doctor") {
+          img = await uploadImageIfSelected(token);
+        }
 
         await updateDbWithRetry(token, (db)=>{
           if(!Array.isArray(db.reports)) db.reports = [];
