@@ -36,7 +36,7 @@
       <div class="grid">
         <div>
           <label>用户名</label>
-          <input id="username" placeholder="例如 aaa" />
+          <input id="username" placeholder="例如 doctor / patient" />
         </div>
         <div>
           <label>密码</label>
@@ -44,22 +44,23 @@
         </div>
       </div>
 
-
-
       <div style="margin-top:12px;">
         <button id="btnLogin">登录并进入报告</button>
       </div>
 
       <div class="small" style="margin-top:10px;">
-        演示账号：<b>aaa</b> / <b>123456</b>
+        演示账号：<b>doctor</b> / <b>123456</b>（医生，可提交云端）<br>
+        演示账号：<b>patient</b> / <b>123456</b>（患者，只读自动刷新）
       </div>
       <div id="err" class="err"></div>
     </div>
   </div>
 
   <script>
-    const FIXED_USER = "aaa";
-    const FIXED_PASS = "123456";
+    const ACCOUNTS = [
+      { username: "doctor", password: "123456", role: "doctor" },
+      { username: "patient", password: "123456", role: "patient" }
+    ];
 
     document.getElementById("btnLogin").onclick = () => {
       const u = document.getElementById("username").value.trim();
@@ -67,14 +68,18 @@
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code") || "001";
 
-      if (u === FIXED_USER && p === FIXED_PASS) {
-        // 简化：把登录状态写到 localStorage（演示）
-        localStorage.setItem("logged_in", "1");
-        // 跳到报告页
-        window.location.href = `report.html?code=${encodeURIComponent(code)}`;
-      } else {
+      const hit = ACCOUNTS.find(x => x.username === u && x.password === p);
+      if (!hit) {
         document.getElementById("err").textContent = "用户名或密码错误";
+        return;
       }
+
+      try{
+        localStorage.setItem("logged_in", "1");
+        localStorage.setItem("role", hit.role);
+      }catch(e){}
+
+      window.location.assign(`./report.html?code=${encodeURIComponent(code)}`);
     };
   </script>
 </body>
