@@ -71,17 +71,17 @@
     .filebtn:hover{ background:#f3f7fb; }
     .filebtn input{ display:none; }
 
-    /* 统一按钮字体与高度（修复字体不一致） */
+    /* 统一按钮字体与高度 */
     .btn, .filebtn{
       font-size: 14px;
       line-height: 20px;
       font-weight: 600;
     }
 
-    /* 二维码展示框：与医学图像展示框同尺寸（修复大小不一致） */
+    /* 二维码展示框：与医学图像展示框同尺寸 */
     .qrbox{
       width:100%;
-      aspect-ratio: 4/3; /* 与 .imgbox 一致 */
+      aspect-ratio: 4/3;
       border:1px dashed #c6cdd6;
       border-radius:10px;
       background:#f6f8fa;
@@ -106,7 +106,6 @@
   <div class="wrap">
     <div class="hblock">
       <h2>医学影像诊断报告</h2>
-      <!-- <div class="small">说明：该页面为毕业设计演示版（前端自适应布局）</div> -->
     </div>
 
     <div class="grid2">
@@ -228,7 +227,49 @@
 - 遵医嘱用药`;
 
     // -----------------------------
-    // 医学图像：上传预览 / 清除 / 下载
+    // 通用：另存为（优先 showSaveFilePicker，失败则回退 a.download）
+    // -----------------------------
+    async function saveAsBlob(blob, filename) {
+      if (window.showSaveFilePicker) {
+        const ext = (filename.split(".").pop() || "png").toLowerCase();
+        const mime =
+          ext === "png" ? "image/png" :
+          (ext === "jpg" || ext === "jpeg") ? "image/jpeg" :
+          "application/octet-stream";
+
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: "Image",
+            accept: { [mime]: ["." + ext] }
+          }]
+        });
+
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      }
+
+      // 回退：是否弹“另存为”由浏览器下载设置决定
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function fetchToBlob(url) {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("下载失败");
+      return await res.blob();
+    }
+
+    // -----------------------------
+    // 医学图像：上传预览 / 清除 / 另存为下载
     // -----------------------------
     const fileInput = document.getElementById("fileInput");
     const imgbox = document.getElementById("imgbox");
@@ -261,21 +302,21 @@
       setImgPlaceholder();
     };
 
-    document.getElementById("btnDownloadImg").onclick = () => {
-      if (!currentImgUrl) {
-        alert("当前没有图像可下载");
-        return;
+    document.getElementById("btnDownloadImg").onclick = async () => {
+      try{
+        if (!currentImgUrl) {
+          alert("当前没有图像可下载");
+          return;
+        }
+        const blob = await fetchToBlob(currentImgUrl);
+        await saveAsBlob(blob, currentImgName || "medical_image.png");
+      }catch(e){
+        alert("下载失败（可能是浏览器不支持另存为或权限限制）");
       }
-      const a = document.createElement("a");
-      a.href = currentImgUrl;
-      a.download = currentImgName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
     };
 
     // -----------------------------
-    // QR码：生成（当前网址编码）/ 下载
+    // 二维码：生成（当前网址编码）/ 另存为下载
     // -----------------------------
     const qrbox = document.getElementById("qrbox");
     let currentQrUrl = null;
@@ -292,21 +333,21 @@
       qrbox.innerHTML = "";
       const img = document.createElement("img");
       img.src = qrImgSrc;
-      img.alt = "QR码展示";
+      img.alt = "访问二维码";
       qrbox.appendChild(img);
     };
 
-    document.getElementById("btnDownloadQR").onclick = () => {
-      if (!currentQrUrl) {
-        alert("请先生成二维码");
-        return;
+    document.getElementById("btnDownloadQR").onclick = async () => {
+      try{
+        if (!currentQrUrl) {
+          alert("请先生成二维码");
+          return;
+        }
+        const blob = await fetchToBlob(currentQrUrl);
+        await saveAsBlob(blob, "qr_code.png");
+      }catch(e){
+        alert("下载失败（可能是浏览器不支持另存为或网络限制）");
       }
-      const a = document.createElement("a");
-      a.href = currentQrUrl;
-      a.download = "qr_code.png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
     };
 
     // 初始化占位
