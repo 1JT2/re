@@ -25,6 +25,14 @@
     }
     .btn:hover{ background:#f3f7fb; }
 
+    /* 禁用态：置灰 + 禁止交互 */
+    .btn:disabled{
+      background:#f1f1f1;
+      color:#9aa0a6;
+      border-color:#e0e0e0;
+      cursor:not-allowed;
+    }
+
     .badge{ font-size:12px; padding:4px 8px; border-radius:999px; background:#f1f1f1; }
 
     .grid2{ display:grid; grid-template-columns: 1fr; gap:12px; }
@@ -187,7 +195,6 @@
             <span class="small">未加载图像</span>
           </div>
 
-          <!-- 选择文件改为普通按钮；file input 隐藏 -->
           <input type="file" id="fileInput" accept="image/*" style="display:none;"/>
 
           <div class="toolrow">
@@ -316,7 +323,7 @@
       }
     }
 
-    // ===== 3) 角色控制 =====
+    // ===== 3) 角色控制（患者端按钮置灰禁用） =====
     function setEditableForRole(){
       const isDoctor = (role === "doctor");
       $("doctorPanel").style.display = isDoctor ? "" : "none";
@@ -328,6 +335,13 @@
 
       diagStatus.textContent = isDoctor ? "可编辑" : "只读";
       advStatus.textContent  = isDoctor ? "可编辑" : "只读";
+
+      // 患者端：选择文件、清除预览 置灰禁用
+      $("btnPickFile").disabled = !isDoctor;
+      $("btnClearImg").disabled = !isDoctor;
+
+      // file input 也禁用（避免通过键盘/脚本触发）
+      $("fileInput").disabled = !isDoctor;
     }
 
     // ===== 4) 渲染 =====
@@ -395,13 +409,15 @@
       }
     }
 
-    // ===== 5) 本地选图（预览）+ 清除预览修复 =====
+    // ===== 5) 本地选图（预览）+ 清除预览（医生可用） =====
     const fileInput = $("fileInput");
     const btnPickFile = $("btnPickFile");
     let localPreviewObjectUrl = null;
     let selectedFile = null;
 
     btnPickFile.onclick = () => {
+      // 如果禁用了按钮，这里不会触发；保底判断
+      if (btnPickFile.disabled) return;
       fileInput.click();
     };
 
@@ -416,17 +432,18 @@
     });
 
     $("btnClearImg").onclick = () => {
-      // 1) 释放并清空本地预览
+      if ($("btnClearImg").disabled) return;
+
       if (localPreviewObjectUrl) {
         URL.revokeObjectURL(localPreviewObjectUrl);
         localPreviewObjectUrl = null;
       }
       selectedFile = null;
 
-      // 2) 强制清空 input，避免重复选择同一文件不触发 change
+      // 强制清空 input，保证下次选同一个文件也能触发 change
       try { fileInput.value = ""; } catch(e){}
 
-      // 3) 恢复云端图像（如果存在）否则占位
+      // 恢复云端图像（如果存在）否则占位
       if (currentImageUrl) showImg(currentImageUrl);
       else setImgPlaceholder();
     };
@@ -453,7 +470,6 @@
       const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${uploadPath}`;
       const imageName = selectedFile.name || `medical_image.${safeExt}`;
 
-      // 上传后清空选择，避免重复上传
       selectedFile = null;
       try { fileInput.value = ""; } catch(e){}
 
@@ -468,7 +484,6 @@
 
         $("saveStatus").textContent = "正在保存...";
 
-        // 只有医生才允许上传图像到云端；患者即使选了图也不会上传
         let img = null;
         if (role === "doctor") {
           img = await uploadImageIfSelected(token);
