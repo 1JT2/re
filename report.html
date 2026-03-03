@@ -12,6 +12,7 @@
     .topbar .wrap{ max-width:var(--max); margin:0 auto; padding:14px 16px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
     .wrap{ max-width:var(--max); margin:0 auto; padding:16px; }
     .btn{ padding:8px 10px; border-radius:10px; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
+    .btn:hover{ background:#f3f7fb; }
     .badge{ font-size:12px; padding:4px 8px; border-radius:999px; background:#f1f1f1; }
     .grid2{ display:grid; grid-template-columns: 1fr; gap:12px; }
     @media (min-width: 900px){ .grid2{ grid-template-columns: 1.35fr 0.65fr; } }
@@ -42,8 +43,47 @@
       object-fit:contain;
       display:block;
     }
-    .imgtools{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    input[type="file"]{ width:100%; }
+
+    /* 统一按钮区域：等宽、均匀，自适应 */
+    .toolrow{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:8px;
+      margin-top:10px;
+    }
+    @media (max-width: 480px){
+      .toolrow{ grid-template-columns: 1fr; }
+    }
+
+    /* file input 伪装成按钮 */
+    .filebtn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+      background:#fff;
+      cursor:pointer;
+      padding:8px 10px;
+      user-select:none;
+      width:100%;
+    }
+    .filebtn:hover{ background:#f3f7fb; }
+    .filebtn input{ display:none; }
+
+    /* 二维码展示框 */
+    .qrbox{
+      width:100%;
+      aspect-ratio: 1/1;
+      border:1px dashed #c6cdd6;
+      border-radius:10px;
+      background:#f6f8fa;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .qrbox img{ width:100%; height:100%; object-fit:contain; display:block; }
   </style>
 </head>
 <body>
@@ -94,7 +134,7 @@
         </div>
       </div>
 
-      <!-- 右：医学图像展示 -->
+      <!-- 右：医学图像展示 + QR码展示 -->
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="card">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
@@ -106,9 +146,32 @@
             <span class="small">未加载图像（可上传医学图像水印系统输出的医学图像）</span>
           </div>
 
-          <div class="imgtools">
-            <input type="file" id="fileInput" accept="image/*"/>
+          <!-- 医学图像按钮：选择/清除/下载 -->
+          <div class="toolrow">
+            <label class="filebtn">
+              选择文件
+              <input type="file" id="fileInput" accept="image/*"/>
+            </label>
             <button class="btn" id="btnClearImg">清除图像</button>
+            <button class="btn" id="btnDownloadImg">下载图像</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
+
+          <!-- 二维码展示区 -->
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+            <div><b>访问二维码展示</b></div>
+            <div class="small">将当前网址编码为QR码</div>
+          </div>
+
+          <div class="qrbox" id="qrbox">
+            <span class="small">未生成二维码</span>
+          </div>
+
+          <!-- 二维码按钮：生成/下载（两列均匀） -->
+          <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
+            <button class="btn" id="btnGenQR">生成图像</button>
+            <button class="btn" id="btnDownloadQR">下载图像</button>
           </div>
 
           <div class="small" style="margin-top:10px;color:#555;">
@@ -157,26 +220,91 @@
 - 若出现胸闷/咳嗽加重，及时就诊
 - 遵医嘱用药`;
 
-    // 图像上传预览
+    // -----------------------------
+    // 医学图像：上传预览 / 清除 / 下载
+    // -----------------------------
     const fileInput = document.getElementById("fileInput");
     const imgbox = document.getElementById("imgbox");
+    let currentImgUrl = null;       // Object URL
+    let currentImgName = "medical_image.png";
+
+    function setImgPlaceholder(){
+      imgbox.innerHTML = '<span class="small">未加载图像（可上传医学图像水印系统输出的医学图像）</span>';
+    }
 
     fileInput.addEventListener("change", () => {
       const file = fileInput.files && fileInput.files[0];
       if (!file) return;
 
-      const url = URL.createObjectURL(file);
+      if (currentImgUrl) URL.revokeObjectURL(currentImgUrl);
+      currentImgUrl = URL.createObjectURL(file);
+      currentImgName = file.name || "medical_image.png";
+
       imgbox.innerHTML = "";
       const img = document.createElement("img");
-      img.src = url;
+      img.src = currentImgUrl;
       img.alt = "医学图像预览";
       imgbox.appendChild(img);
     });
 
     document.getElementById("btnClearImg").onclick = () => {
-      imgbox.innerHTML = '<span class="small">未加载图像（可上传医学图像水印系统输出得医学图像）</span>';
+      if (currentImgUrl) URL.revokeObjectURL(currentImgUrl);
+      currentImgUrl = null;
       fileInput.value = "";
+      setImgPlaceholder();
     };
+
+    document.getElementById("btnDownloadImg").onclick = () => {
+      if (!currentImgUrl) {
+        alert("当前没有图像可下载");
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = currentImgUrl;
+      a.download = currentImgName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    // -----------------------------
+    // 二维码：生成（当前网址编码）/ 下载
+    // -----------------------------
+    const qrbox = document.getElementById("qrbox");
+    let currentQrUrl = null;
+
+    function setQrPlaceholder(){
+      qrbox.innerHTML = '<span class="small">未生成二维码</span>';
+    }
+
+    document.getElementById("btnGenQR").onclick = () => {
+      const urlToEncode = window.location.href; // 将当前网址编码为QR码
+      const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlToEncode)}`;
+
+      currentQrUrl = qrImgSrc;
+      qrbox.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = qrImgSrc;
+      img.alt = "访问二维码";
+      qrbox.appendChild(img);
+    };
+
+    document.getElementById("btnDownloadQR").onclick = () => {
+      if (!currentQrUrl) {
+        alert("请先生成二维码");
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = currentQrUrl;
+      a.download = "qr_code.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    // 初始化占位
+    setImgPlaceholder();
+    setQrPlaceholder();
   </script>
 </body>
 </html>
