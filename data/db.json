@@ -1,0 +1,19 @@
+{
+  "reports": [
+    {
+      "code": "001",
+      "patientId": "P-001",
+      "reportId": "R-001",
+      "examDate": "2025-07-10",
+      "patientName": "患者001",
+      "genderAge": "男 / 45",
+      "doctorName": "张医生（工号 D-001）",
+      "department": "胸外科",
+      "imageMeta": "CT，分辨率 512×512",
+      "bodyPart": "胸部",
+      "diagnosisProof": "1）影像所见：未见明显占位性病变。\n2）诊断意见：建议结合临床症状随访。\n3）说明：本报告为演示内容。",
+      "medicalAdvice": "建议：\n- 规律复查（3个月）\n- 若出现胸闷/咳嗽加重，及时就诊\n- 遵医嘱用药",
+      "updatedAt": 1700000000000
+    }
+  ]
+}
