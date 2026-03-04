@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>医学影像诊断报告</title>
+  <!-- 引入 qrcode.js 库 -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     :root { --max: 1100px; }
     *{ box-sizing:border-box; }
@@ -80,6 +82,7 @@
       overflow:hidden;
     }
     .qrbox img{ width:100%; height:100%; object-fit:contain; display:block; }
+    .qrbox canvas{ width:100%; height:100%; object-fit:contain; }
 
     .editable{
       border:1px solid #d1d5db;
@@ -342,7 +345,7 @@
     let currentImageUrl = null;
     let currentImageName = "medical_image.png";
 
-    let currentQrImgUrl = null;
+    let currentQrCanvas = null;  // 存储生成的QR canvas
 
     function setImgPlaceholder(){
       $("imgbox").innerHTML = '<span class="small">未加载图像</span>';
@@ -357,15 +360,44 @@
     }
     function setQrPlaceholder(){
       $("qrbox").innerHTML = '<span class="small">未生成二维码</span>';
+      currentQrCanvas = null;
     }
-    function showQr(urlToEncode){
-      currentQrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlToEncode)}`;
-      const box = $("qrbox");
-      box.innerHTML = "";
-      const img = document.createElement("img");
-      img.src = currentQrImgUrl;
-      img.alt = "QR码";
-      box.appendChild(img);
+    
+    // 使用 qrcode.js 生成符合要求的QR码
+    // version=4, error_correction=H (30%容错), box_size=10, border=2
+    function generateQRCode(urlToEncode) {
+      return new Promise((resolve, reject) => {
+        const qrbox = $("qrbox");
+        qrbox.innerHTML = ""; // 清空容器
+        
+        // 创建 canvas 元素
+        const canvas = document.createElement("canvas");
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        qrbox.appendChild(canvas);
+        
+        // 配置参数对应 Python 的：
+        // version=4, error_correction=ERROR_CORRECT_H, box_size=10, border=2
+        const options = {
+          version: 4,                    // 版本4
+          errorCorrectionLevel: 'H',     // 30% 容错率 (High)
+          scale: 10,                     // 每个模块的像素数 (box_size)
+          margin: 2,                     // 边框宽度 (border)
+          color: {
+            dark: '#000000',             // 前景色（黑色）
+            light: '#ffffff'             // 背景色（白色）
+          }
+        };
+        
+        QRCode.toCanvas(canvas, urlToEncode, options, function(error) {
+          if (error) {
+            reject(error);
+          } else {
+            currentQrCanvas = canvas;
+            resolve(canvas);
+          }
+        });
+      });
     }
 
     function fillReport(r){
@@ -561,19 +593,34 @@
       }
     };
 
-    // ===== 8) QR：只生成，不保存云端 =====
-    $("btnGenQR").onclick = () => {
-      const urlToEncode = window.location.href;
-      showQr(urlToEncode);
+    // ===== 8) QR：使用 qrcode.js 本地生成，不保存云端 =====
+    $("btnGenQR").onclick = async () => {
+      try {
+        const urlToEncode = window.location.href;
+        await generateQRCode(urlToEncode);
+      } catch(e) {
+        alert("生成二维码失败: " + e.message);
+        console.error(e);
+      }
     };
 
     $("btnDownloadQR").onclick = async () => {
       try{
-        if(!currentQrImgUrl){ alert("请先生成二维码"); return; }
-        const blob = await fetchToBlob(currentQrImgUrl);
-        await saveAsBlob(blob, "qr_code.png");
+        if(!currentQrCanvas){ 
+          alert("请先生成二维码"); 
+          return; 
+        }
+        // 将 canvas 转换为 blob
+        currentQrCanvas.toBlob(async (blob) => {
+          if (!blob) {
+            alert("转换失败");
+            return;
+          }
+          await saveAsBlob(blob, "qr_code.png");
+        }, "image/png");
       }catch(e){
-        alert("下载失败");
+        alert("下载失败: " + e.message);
+        console.error(e);
       }
     };
 
