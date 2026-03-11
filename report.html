@@ -78,6 +78,7 @@
       align-items:center;
       justify-content:center;
       overflow:hidden;
+      position:relative;
     }
     .qrbox img{ width:100%; height:100%; object-fit:contain; display:block; }
 
@@ -582,10 +583,17 @@
         qr.addData(urlToEncode);
         qr.make();
 
-        // 计算单元格大小：300px / 29 ≈ 10px/模块
-        const containerSize = 300;
-        const cellSize = Math.floor(containerSize / MODULE_COUNT);
-        const margin = Math.floor((containerSize - cellSize * MODULE_COUNT) / 2);
+        // 计算单元格大小：适应 4:3 容器，取高度作为基准（因为容器是 4:3，高度较小）
+        // 容器高度由 aspect-ratio: 4/3 决定，假设容器宽度为 W，则高度为 W*3/4
+        // 为了让 QR 码在容器内完整显示，使用较大的单元格，但确保不超出容器
+        const containerSize = 400; // 假设容器宽度
+        const containerHeight = Math.floor(containerSize * 3 / 4); // 300
+        
+        // QR 码是正方形，取较小边作为限制，并留一些边距
+        const qrMaxSize = Math.min(containerSize, containerHeight) * 0.85;
+        
+        const cellSize = Math.floor(qrMaxSize / MODULE_COUNT);
+        const margin = Math.floor((qrMaxSize - cellSize * MODULE_COUNT) / 2);
 
         currentQrImgUrl = qr.createDataURL(cellSize, margin);
         
@@ -594,10 +602,7 @@
         const img = document.createElement("img");
         img.src = currentQrImgUrl;
         img.alt = `QR码 (Version ${VERSION}, ${MODULE_COUNT}×${MODULE_COUNT})`;
-        img.style.width = containerSize + "px";
-        img.style.height = containerSize + "px";
-        img.style.display = "block";
-        img.style.margin = "0 auto";
+        // 不设置任何样式，让 CSS 统一控制（与医学图像一致）
         box.appendChild(img);
         
       } catch (e) {
