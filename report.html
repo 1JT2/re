@@ -102,6 +102,8 @@
     }
     .status{ font-size:12px; color:#555; }
   </style>
+  <!-- 引入 QR 库（CDN方式，无需下载文件） -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 </head>
 <body>
   <div class="topbar">
@@ -358,15 +360,6 @@
     function setQrPlaceholder(){
       $("qrbox").innerHTML = '<span class="small">未生成二维码</span>';
     }
-    function showQr(urlToEncode){
-      currentQrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlToEncode)}`;
-      const box = $("qrbox");
-      box.innerHTML = "";
-      const img = document.createElement("img");
-      img.src = currentQrImgUrl;
-      img.alt = "QR码";
-      box.appendChild(img);
-    }
 
     function fillReport(r){
       $("patient-id").textContent = r.patientId || `P-${code}`;
@@ -561,11 +554,58 @@
       }
     };
 
-    // ===== 8) QR：只生成，不保存云端 =====
+    // ===== 8) QR：强制 Version 3 (29×29) =====
     $("btnGenQR").onclick = () => {
       const urlToEncode = window.location.href;
       showQr(urlToEncode);
     };
+
+    function showQr(urlToEncode) {
+      // 计算字节数（UTF-8）
+      const dataBytes = new TextEncoder().encode(urlToEncode).length;
+      
+      // Version 3-L: 29×29 模块，最大 53 字节
+      const VERSION = 3;
+      const MODULE_COUNT = 29;
+      const MAX_BYTES = 53;
+      const ECC_LEVEL = 'L';
+      
+      if (dataBytes > MAX_BYTES) {
+        $("qrbox").innerHTML = `<span class="small" style="color:#b00020;">数据过长 (${dataBytes}/${MAX_BYTES} 字节)<br>请缩短URL</span>`;
+        currentQrImgUrl = null;
+        return;
+      }
+
+      try {
+        // 生成指定版本 QR 码
+        const qr = qrcode(VERSION, ECC_LEVEL);
+        qr.addData(urlToEncode);
+        qr.make();
+
+        // 计算单元格大小：300px / 29 ≈ 10px/模块
+        const containerSize = 300;
+        const cellSize = Math.floor(containerSize / MODULE_COUNT);
+        const margin = Math.floor((containerSize - cellSize * MODULE_COUNT) / 2);
+
+        currentQrImgUrl = qr.createDataURL(cellSize, margin);
+        
+        const box = $("qrbox");
+        box.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = currentQrImgUrl;
+        img.alt = `QR码 (Version ${VERSION}, ${MODULE_COUNT}×${MODULE_COUNT})`;
+        img.style.width = containerSize + "px";
+        img.style.height = containerSize + "px";
+        img.style.display = "block";
+        img.style.margin = "0 auto";
+        box.appendChild(img);
+        
+      } catch (e) {
+        console.error(e);
+        $("qrbox").innerHTML = '<span class="small" style="color:#b00020;">生成失败</span>';
+        currentQrImgUrl = null;
+      }
+    }
 
     $("btnDownloadQR").onclick = async () => {
       try{
