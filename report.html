@@ -102,6 +102,27 @@
       margin-bottom:8px;
     }
     .status{ font-size:12px; color:#555; }
+
+    /* API Token 输入框样式 */
+    .token-input{
+      width:100%;
+      padding:8px 10px;
+      border:1px solid #d1d5db;
+      border-radius:8px;
+      font-size:13px;
+      font-family:monospace;
+      margin-bottom:10px;
+    }
+    .token-input:focus{
+      outline:none;
+      border-color:#3b82f6;
+      box-shadow:0 0 0 3px rgba(59,130,246,.1);
+    }
+    .token-hint{
+      font-size:11px;
+      color:#666;
+      margin-bottom:8px;
+    }
   </style>
   <!-- 引入 QR 库（CDN方式，无需下载文件） -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -168,6 +189,15 @@
             <div><b>云端操作</b></div>
             <div class="status" id="saveStatus">—</div>
           </div>
+          
+          <!-- API Token 输入区域 -->
+          <div class="token-hint">请输入 GitHub API Token 以启用云端保存功能：</div>
+          <input type="password" 
+                 class="token-input" 
+                 id="apiToken" 
+                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                 autocomplete="off">
+          
           <div class="toolrow" style="grid-template-columns:1fr 1fr;margin-top:10px;">
             <button class="btn" id="btnSaveCloud">保存到云端</button>
             <button class="btn" id="btnReload">从云端刷新</button>
@@ -218,10 +248,9 @@
 
   <script>
     // =========================
-    // 演示用：把 token 写死在前端
-    // ⚠️ 任何人都能看到并使用！演示结束请撤销 token。
+    // 安全提示：Token 不再硬编码，需要用户手动输入
+    // Token 仅保存在内存中，页面刷新后需重新输入
     // =========================
-    const GITHUB_TOKEN = "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";
 
     // ===== 0) 登录拦截 =====
     try{
@@ -244,7 +273,7 @@
     // ===== 1) GitHub 配置 =====
     const OWNER = "1JT2";
     const REPO  = "re";
-    const BRANCH = "main";     // 如果是 master 请改
+    const BRANCH = "main";
     const DB_PATH = "data/db.json";
     const POLL_MS = 4000;
 
@@ -259,6 +288,9 @@
     const advStatus  = $("advStatus");
     const syncBadge  = $("syncBadge");
 
+    // API Token 输入框
+    const tokenInput = $("apiToken");
+
     // ===== 2) GitHub API =====
     async function loadDbRaw(){
       const url = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${DB_PATH}?ts=${nowMs()}`;
@@ -267,9 +299,13 @@
       return await res.json();
     }
 
-    async function ghGetFile(path){
+    async function ghGetFile(path, token){
       const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
-      const res = await fetch(url, { headers: { "Accept":"application/vnd.github+json" } });
+      const headers = { "Accept":"application/vnd.github+json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token.trim()}`;
+      }
+      const res = await fetch(url, { headers });
       if(!res.ok) throw new Error(`GET contents failed: ${res.status}`);
       return await res.json();
     }
@@ -303,7 +339,7 @@
     async function updateDbWithRetry(token, updaterFn, maxRetry = 1) {
       let attempt = 0;
       while(true){
-        const file = await ghGetFile(DB_PATH);
+        const file = await ghGetFile(DB_PATH, token);
         const text = decodeURIComponent(escape(atob(file.content.replace(/\n/g, ""))));
         const db = JSON.parse(text);
 
@@ -383,6 +419,7 @@
     }
 
     async function refreshFromCloud(){
+      // 刷新不需要 Token，使用公开 API
       const db = await loadDbRaw();
       const report = (db.reports || []).find(x=>String(x.code)===String(code));
       if(!report){ syncBadge.textContent = "未找到该code"; return; }
@@ -432,7 +469,7 @@
       else setImgPlaceholder();
     };
 
-    // ===== 6) 保存到云端：文字 +（若选了图像且为医生）上传并写回 imageUrl =====
+    // ===== 6) 保存到云端：需要输入 API Token =====
     async function uploadImageIfSelected(token){
       if(!selectedFile) return null;
 
@@ -462,13 +499,23 @@
 
     $("btnSaveCloud")?.addEventListener("click", async ()=>{
       $("err").textContent = "";
-      try{
-        const token = GITHUB_TOKEN.trim();
-        if(!token){
-          $("err").textContent = "Token 未配置";
-          return;
-        }
+      
+      // 获取用户输入的 Token
+      const token = tokenInput.value.trim();
+      
+      if(!token){
+        $("err").textContent = "请先输入 GitHub API Token";
+        tokenInput.focus();
+        return;
+      }
 
+      // 简单验证 Token 格式
+      if(!token.startsWith("ghp_") && !token.startsWith("github_pat_")){
+        $("err").textContent = "Token 格式不正确，应以 ghp_ 或 github_pat_ 开头";
+        return;
+      }
+
+      try{
         $("saveStatus").textContent = "正在保存...";
 
         let img = null;
@@ -496,6 +543,8 @@
         }, 1);
 
         $("saveStatus").textContent = "提交成功";
+        // 保存成功后清空 Token（可选，为了安全）
+        // tokenInput.value = "";
         await refreshFromCloud();
       }catch(e){
         $("saveStatus").textContent = "提交失败";
@@ -562,10 +611,8 @@
     };
 
     function showQr(urlToEncode) {
-      // 计算字节数（UTF-8）
       const dataBytes = new TextEncoder().encode(urlToEncode).length;
       
-      // Version 3-L: 29×29 模块，最大 53 字节
       const VERSION = 3;
       const MODULE_COUNT = 29;
       const MAX_BYTES = 53;
@@ -578,18 +625,12 @@
       }
 
       try {
-        // 生成指定版本 QR 码
         const qr = qrcode(VERSION, ECC_LEVEL);
         qr.addData(urlToEncode);
         qr.make();
 
-        // 计算单元格大小：适应 4:3 容器，取高度作为基准（因为容器是 4:3，高度较小）
-        // 容器高度由 aspect-ratio: 4/3 决定，假设容器宽度为 W，则高度为 W*3/4
-        // 为了让 QR 码在容器内完整显示，使用较大的单元格，但确保不超出容器
-        const containerSize = 400; // 假设容器宽度
-        const containerHeight = Math.floor(containerSize * 3 / 4); // 300
-        
-        // QR 码是正方形，取较小边作为限制，并留一些边距
+        const containerSize = 400;
+        const containerHeight = Math.floor(containerSize * 3 / 4);
         const qrMaxSize = Math.min(containerSize, containerHeight) * 0.85;
         
         const cellSize = Math.floor(qrMaxSize / MODULE_COUNT);
@@ -602,7 +643,6 @@
         const img = document.createElement("img");
         img.src = currentQrImgUrl;
         img.alt = `QR码 (Version ${VERSION}, ${MODULE_COUNT}×${MODULE_COUNT})`;
-        // 不设置任何样式，让 CSS 统一控制（与医学图像一致）
         box.appendChild(img);
         
       } catch (e) {
